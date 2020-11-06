@@ -216,8 +216,8 @@ class smartthings extends eqLogic {
 			log::add('smartthings', 'info', __('Log des deviceID', __FILE__));	
             if(!self::isDeviceExist($device->deviceId)) {
 				// Log des deviceID
-				log::add('smartthings', 'info', __('Existing Device ->', __FILE__).' Name ->'.$device->name.'<- ID ->'.$device->deviceTypeId.'<-');
-                if($device->deviceTypeId == "6962dd3b-aac6-4e86-9d85-9b86ba6ff166") { // Machine à laver Samsung
+				log::add('smartthings', 'info', __('Existing Device ->', __FILE__).'Device Name:'.$device->name.'/Type ID:'.$device->deviceTypeId.'/TypeName:' . $device->deviceTypeName);
+                if($device->deviceTypeId  == "6962dd3b-aac6-4e86-9d85-9b86ba6ff166") { // Machine à laver Samsung
                     $eqLogic = new eqLogic();
                     $eqLogic->setEqType_name('smartthings');
                     $eqLogic->setIsEnable(1);
