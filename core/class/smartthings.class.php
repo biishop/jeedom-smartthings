@@ -102,9 +102,32 @@ class smartthings extends eqLogic {
             $this->checkAndUpdateCmd('spin_level', $vars["custom.washerSpinLevel"]->washerSpinLevel->value);
         } else if($this->getConfiguration('type') == "c2c-rgbw-color-bulb") {
             // TODO
+        } else if($this->getConfiguration('type') == "Samsung OCF Air Conditioner") {
+			$status = self::getDeviceStatus($this->getConfiguration('deviceId'));
+			$this->checkAndUpdateCmd('status', ($status->switch->switch->value == "off") ? 0 : 1);
+			$this->checkAndUpdateCmd('temperature', $status->temperatureMeasurement->temperature->value);
+			$this->checkAndUpdateCmd('thermostat', $status->thermostatCoolingSetpoint->coolingSetpoint->value);
+			$this->checkAndUpdateCmd('modefn', $status->airConditionerMode->airConditionerMode->value);
+			$this->checkAndUpdateCmd('fanmode', $status->airConditionerFanMode->fanMode->value);
+			$this->checkAndUpdateCmd('power', $status->powerConsumptionReport->powerConsumption->value->energy);
+			
+        } else if($this->getConfiguration('type') == "Samsung OCF TV") {
+			$status = self::getDeviceStatus($this->getConfiguration('deviceId'));
+			$this->checkAndUpdateCmd('status', ($status->switch->switch->value == "off") ? 0 : 1);
+			$this->checkAndUpdateCmd('source', $status->mediaInputSource->inputSource->value);
         }
-
     }
+	
+    public function controle($cmd) {
+		log::add('smartthings', 'info', __('type test', __FILE__));
+		if($this->getConfiguration('type') == "Samsung OCF Air Conditioner") {
+			log::add('smartthings', 'debug', __('SetDeviceStatus launch', __FILE__));
+			$status = self::SetDeviceStatus($this->getConfiguration('deviceId'),$cmd);
+        } elseif($this->getConfiguration('type') == "Samsung OCF TV") {
+			log::add('smartthings', 'debug', __('SetDeviceStatus launch', __FILE__));
+			$status = self::SetDeviceStatus($this->getConfiguration('deviceId'),$cmd);
+        }
+    }	
 
     public static function getWasherModeLabel($mode) {
         switch ($mode) {
@@ -187,9 +210,13 @@ class smartthings extends eqLogic {
 
     public static function synchronize() {
         $devices = self::getDevices();
-
+		log::add('smartthings', 'info', __('synchronize deviceID', __FILE__));
         foreach ($devices->items as $device) {
+
+			log::add('smartthings', 'info', __('Log des deviceID', __FILE__));	
             if(!self::isDeviceExist($device->deviceId)) {
+				// Log des deviceID
+				log::add('smartthings', 'info', __('Existing Device ->', __FILE__).' Name ->'.$device->name.'<- ID ->'.$device->deviceTypeId.'<-');
                 if($device->deviceTypeId == "6962dd3b-aac6-4e86-9d85-9b86ba6ff166") { // Machine à laver Samsung
                     $eqLogic = new eqLogic();
                     $eqLogic->setEqType_name('smartthings');
@@ -296,6 +323,140 @@ class smartthings extends eqLogic {
                     $eqLogic->setConfiguration('type', $device->name);
                     $eqLogic->setConfiguration('deviceId', $device->deviceId);
                     $eqLogic->save();
+                //} else if($device->name == "[room a/c] Samsung") { // Climatiseur
+				} else if($device->deviceTypeName == "Samsung OCF Air Conditioner") { // Climatiseur
+					log::add('event', 'info', __('New Climatiseur', __FILE__));
+                    $eqLogic = new eqLogic();
+                    $eqLogic->setEqType_name('smartthings');
+                    $eqLogic->setIsEnable(1);
+                    $eqLogic->setIsVisible(1);
+                    $eqLogic->setName($device->label);
+                    $eqLogic->setConfiguration('type', $device->deviceTypeName);
+                    $eqLogic->setConfiguration('deviceId', $device->deviceId);
+                    $eqLogic->save();
+					
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('binary');
+                    $smartthingsCmd->setName('Status');
+                    $smartthingsCmd->setLogicalId("status");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();					
+
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('numeric');
+                    $smartthingsCmd->setName('Temperature');
+                    $smartthingsCmd->setLogicalId("temperature");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('numeric');
+                    $smartthingsCmd->setName('Thermostat');
+                    $smartthingsCmd->setLogicalId("thermostat");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('string');
+                    $smartthingsCmd->setName('Mode Fn');
+                    $smartthingsCmd->setLogicalId("modefn");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('string');
+                    $smartthingsCmd->setName('Mode Fan');
+                    $smartthingsCmd->setLogicalId("fanmode");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('string');
+                    $smartthingsCmd->setName('Conso Total');
+                    $smartthingsCmd->setLogicalId("power");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+					
+					
+					
+					
+
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('action');
+                    $smartthingsCmd->setSubType('other');
+                    $smartthingsCmd->setName('Mise en route');
+                    $smartthingsCmd->setLogicalId("controle_on");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+					
+					$smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('action');
+                    $smartthingsCmd->setSubType('other');
+                    $smartthingsCmd->setName('Arrêt');
+                    $smartthingsCmd->setLogicalId("controle_off");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+
+					$smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('action');
+                    $smartthingsCmd->setSubType('message');
+                    $smartthingsCmd->setName('T Termostat');
+                    $smartthingsCmd->setLogicalId("cible_termo");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+
+
+
+					
+                } else if($device->deviceTypeName == "Samsung OCF TV") { // Climatiseur
+					log::add('event', 'info', __('New Televiseur', __FILE__));
+                    $eqLogic = new eqLogic();
+                    $eqLogic->setEqType_name('smartthings');
+                    $eqLogic->setIsEnable(1);
+                    $eqLogic->setIsVisible(1);
+                    $eqLogic->setName($device->label);
+                    $eqLogic->setConfiguration('type', $device->deviceTypeName);
+                    $eqLogic->setConfiguration('deviceId', $device->deviceId);
+                    $eqLogic->save();
+					
+					$smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('binary');
+                    $smartthingsCmd->setName('Status');
+                    $smartthingsCmd->setLogicalId("status");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+					
+					$smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('string');
+                    $smartthingsCmd->setName('Source');
+                    $smartthingsCmd->setLogicalId("source");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+					
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('action');
+                    $smartthingsCmd->setSubType('other');
+                    $smartthingsCmd->setName('Mise en route');
+                    $smartthingsCmd->setLogicalId("controle_on");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
+					
+					$smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('action');
+                    $smartthingsCmd->setSubType('other');
+                    $smartthingsCmd->setName('Arrêt');
+                    $smartthingsCmd->setLogicalId("controle_off");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();					
+					
                 }
             }
         }
@@ -303,7 +464,7 @@ class smartthings extends eqLogic {
 
     private static function getDevices() {
         $token = config::byKey('token', 'smartthings');
-
+		log::add('smartthings', 'debug', __('REQ getDevices', __FILE__));
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
@@ -320,8 +481,9 @@ class smartthings extends eqLogic {
             ),
         ));
 
+		log::add('smartthings', 'debug', __('URL:', __FILE__).$curl);
         $response = curl_exec($curl);
-
+		log::add('smartthings', 'debug', __('response:', __FILE__).$response);
         curl_close($curl);
 
         return json_decode($response);
@@ -329,7 +491,7 @@ class smartthings extends eqLogic {
 
     private static function getDeviceStatus($deviceId) {
         $token = config::byKey('token', 'smartthings');
-
+		log::add('smartthings', 'debug', __('REQ getDeviceStatus', __FILE__));
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
@@ -345,13 +507,46 @@ class smartthings extends eqLogic {
                 "Authorization: Bearer " . $token
             ),
         ));
-
+		log::add('smartthings', 'debug', __('URL:', __FILE__).$curl);
         $response = curl_exec($curl);
-
+		log::add('smartthings', 'debug', __('response:', __FILE__).$response);
         curl_close($curl);
 
         return json_decode($response);
     }
+
+    private static function SetDeviceStatus($deviceId,$cmd) {
+        $token = config::byKey('token', 'smartthings');
+		
+        $curl = curl_init();
+
+		$data = '{"commands": [{"component": "main" , "capability": "switch", "command": "'.$cmd.'"}]}';
+		
+		log::add('smartthings', 'debug', __('REQ SetDeviceStatus', __FILE__).$data);
+		//	"{"commands": [{"component": "main" , "capability": "switch", "command": "off"})]}"
+						
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "https://api.smartthings.com/v1/devices/" .$deviceId. "/commands",
+            //CURLOPT_RETURNTRANSFER => true,
+            //CURLOPT_ENCODING => "",
+            //CURLOPT_MAXREDIRS => 10,
+            //CURLOPT_TIMEOUT => 0,
+            //CURLOPT_FOLLOWLOCATION => true,
+            //CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_HTTPHEADER => array(
+                "Authorization: Bearer " . $token
+            ),
+			CURLOPT_POSTFIELDS => $data
+        ));
+		
+		log::add('smartthings', 'debug', __('URL:', __FILE__).$curl);
+        $response = curl_exec($curl);
+		log::add('smartthings', 'debug', __('response:', __FILE__).$response);
+        curl_close($curl);
+
+        return json_decode($response);
+    }	
 
     private static function isDeviceExist ($deviceId) {
         $eqLogics = eqLogic::byType('smartthings');
@@ -406,10 +601,17 @@ class smartthingsCmd extends cmd {
             if($this->getLogicalId() == "refresh") {
                 $eqLogic = $this->getEqLogic();
                 $eqLogic->refresh();
-            }
+            }			
+            if($this->getLogicalId() == "controle_on") {
+                $eqLogic = $this->getEqLogic();
+                $eqLogic->controle('on');
+            }	
+			if($this->getLogicalId() == "controle_off") {
+                $eqLogic = $this->getEqLogic();
+                $eqLogic->controle('off');
+            }	
         }
     }
-
     /*     * **********************Getteur Setteur*************************** */
 }
 
