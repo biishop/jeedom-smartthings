@@ -87,7 +87,7 @@ class smartthings extends eqLogic {
     }
 
     public function refresh() {
-        if($this->getConfiguration('type') == "6962dd3b-aac6-4e86-9d85-9b86ba6ff166") {
+        if($this->getConfiguration('type') == "Samsung OCF Washer") {
             $status = self::getDeviceStatus($this->getConfiguration('deviceId'));
             $this->checkAndUpdateCmd('switch', ($status->switch->switch->value == "off") ? 0 : 1);
             $this->checkAndUpdateCmd('status', ($status->washerOperatingState->machineState->value == "stop") ? 0 : 1);
