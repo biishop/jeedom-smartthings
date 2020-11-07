@@ -223,7 +223,7 @@ class smartthings extends eqLogic {
                     $eqLogic->setIsEnable(1);
                     $eqLogic->setIsVisible(1);
                     $eqLogic->setName($device->label);
-                    $eqLogic->setConfiguration('type', $device->deviceTypeId);
+                    $eqLogic->setConfiguration('type', $device->deviceTypeName);
                     $eqLogic->setConfiguration('deviceId', $device->deviceId);
                     $eqLogic->save();
 
