@@ -97,13 +97,13 @@ class smartthings extends eqLogic {
             $this->checkAndUpdateCmd('job', $status->execute->data->value->payload->currentJobState);
             $this->checkAndUpdateCmd('remaining_time', self::dateDiff(time(), strtotime($status->washerOperatingState->completionTime->value)));
             $this->checkAndUpdateCmd('progress', $status->execute->data->value->payload->progressPercentage);
-			$mode_wash = self::getWasherModeLabel($status->washerMode->washerMode->value);
+			$mode_wash = $status->washerMode->washerMode->value;
 			// find mode
 			log::add('smartthings', 'debug', __('washer mode', __FILE__).'->' . $mode_wash . '<-');
             if ($mode_wash != "") {
-				$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($status->washerMode->washerMode->value));
+				$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($mode_wash));
 			} else {
-				$this->checkAndUpdateCmd('mode', $vars["samsungce.washerCycle"]->washerCycle->value);
+				$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($vars["samsungce.washerCycle"]->washerCycle->value));
 			}
             $this->checkAndUpdateCmd('end_mode', $status->washerOperatingState->completionTime->value);
             $this->checkAndUpdateCmd('spin_level', $vars["custom.washerSpinLevel"]->washerSpinLevel->value);
@@ -117,6 +117,8 @@ class smartthings extends eqLogic {
 			$this->checkAndUpdateCmd('modefn', $status->airConditionerMode->airConditionerMode->value);
 			$this->checkAndUpdateCmd('fanmode', $status->airConditionerFanMode->fanMode->value);
 			$this->checkAndUpdateCmd('power', $status->powerConsumptionReport->powerConsumption->value->energy);
+			//$mode_test = self::getWasherModeLabel($status->washerMode->washerMode->value);
+			//log::add('smartthings', 'debug', __('test', __FILE__).'->' . $mode_test . '<-');
 			
         } else if($this->getConfiguration('type') == "Samsung OCF TV") {
 			$status = self::getDeviceStatus($this->getConfiguration('deviceId'));
