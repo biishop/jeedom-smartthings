@@ -97,7 +97,14 @@ class smartthings extends eqLogic {
             $this->checkAndUpdateCmd('job', $status->execute->data->value->payload->currentJobState);
             $this->checkAndUpdateCmd('remaining_time', self::dateDiff(time(), strtotime($status->washerOperatingState->completionTime->value)));
             $this->checkAndUpdateCmd('progress', $status->execute->data->value->payload->progressPercentage);
-            $this->checkAndUpdateCmd('mode', self::getWasherModeLabel($status->washerMode->washerMode->value));
+			$mode_wash = self::getWasherModeLabel($status->washerMode->washerMode->value);
+			// find mode
+			log::add('smartthings', 'debug', __('washer mode', __FILE__).'->' . $mode_wash . '<-');
+            if ($mode_wash != "") {
+				$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($status->washerMode->washerMode->value));
+			} else {
+				$this->checkAndUpdateCmd('mode', $vars["samsungce.washerCycle"]->washerCycle->value);
+			}
             $this->checkAndUpdateCmd('end_mode', $status->washerOperatingState->completionTime->value);
             $this->checkAndUpdateCmd('spin_level', $vars["custom.washerSpinLevel"]->washerSpinLevel->value);
         } else if($this->getConfiguration('type') == "c2c-rgbw-color-bulb") {
@@ -173,6 +180,10 @@ class smartthings extends eqLogic {
             case "Table_00_Course_5D":
                 return "Eco";
                 break;
+			default:
+				return "Inconnu!";
+				log::add('smartthings', 'info', __('Function mode unknow ->', __FILE__).$mode);
+				break;
         }
     }
 
