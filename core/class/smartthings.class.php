@@ -100,11 +100,10 @@ class smartthings extends eqLogic {
 			$mode_wash = $status->washerMode->washerMode->value;
 			// find mode
 			log::add('smartthings', 'debug', __('washer mode', __FILE__).'->' . $mode_wash . '<-');
-            if ($mode_wash != "") {
-				$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($mode_wash));
-			} else {
-				$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($vars["samsungce.washerCycle"]->washerCycle->value));
+            if ($mode_wash == "") {
+				$mode_wash = $vars["samsungce.washerCycle"]->washerCycle->value;
 			}
+			$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($mode_wash));
             $this->checkAndUpdateCmd('end_mode', $status->washerOperatingState->completionTime->value);
             $this->checkAndUpdateCmd('spin_level', $vars["custom.washerSpinLevel"]->washerSpinLevel->value);
         } else if($this->getConfiguration('type') == "c2c-rgbw-color-bulb") {
