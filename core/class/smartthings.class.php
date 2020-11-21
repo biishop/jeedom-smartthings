@@ -88,21 +88,32 @@ class smartthings extends eqLogic {
 
     public function refresh() {
         if($this->getConfiguration('type') == "Samsung OCF Washer") {
-            $status = self::getDeviceStatus($this->getConfiguration('deviceId'));
-            $this->checkAndUpdateCmd('switch', ($status->switch->switch->value == "off") ? 0 : 1);
-            $this->checkAndUpdateCmd('status', ($status->washerOperatingState->machineState->value == "stop") ? 0 : 1);
+			$status = self::getDeviceStatus($this->getConfiguration('deviceId'));
+			$this->checkAndUpdateCmd('switch', ($status->switch->switch->value == "off") ? 0 : 1);
+			$this->checkAndUpdateCmd('status', ($status->washerOperatingState->machineState->value == "stop") ? 0 : 1);
             $vars = get_object_vars($status);
             $this->checkAndUpdateCmd('temperature', $vars["custom.washerWaterTemperature"]->washerWaterTemperature->value);
             $this->checkAndUpdateCmd('rinse_cycles', $vars["custom.washerRinseCycles"]->washerRinseCycles->value);
-            $this->checkAndUpdateCmd('job', $status->execute->data->value->payload->currentJobState);
+            $job_wash = $status->execute->data->value->payload->currentJobState;
+			if ($job_wash == "") {
+				$job_wash = $status->washerOperatingState->washerJobState->value;
+			}
+           	$this->checkAndUpdateCmd('job', self::getWasherJobState($job_wash));
+			if ($job_wash == "none") {
+				$this->checkAndUpdateCmd('progress', "0");
+				$this->checkAndUpdateCmd('end_mode', "Aucun cycle en cours...");
+			} else {
+				$this->checkAndUpdateCmd('progress', $status->execute->data->value->payload->progressPercentage);
+				$this->checkAndUpdateCmd('end_mode', self::getWasherCompletionTime($status->washerOperatingState->completionTime->value));
+			}
             $this->checkAndUpdateCmd('remaining_time', self::dateDiff(time(), strtotime($status->washerOperatingState->completionTime->value)));
-            $this->checkAndUpdateCmd('progress', $status->execute->data->value->payload->progressPercentage);
+            $this->checkAndUpdateCmd('power', $status->powerConsumptionReport->powerConsumption->value->energy);
 			$mode_wash = $status->washerMode->washerMode->value;
 			// find mode
-			log::add('smartthings', 'debug', __('washer mode', __FILE__).'->' . $mode_wash . '<-');
             if ($mode_wash == "") {
 				$mode_wash = $vars["samsungce.washerCycle"]->washerCycle->value;
 			}
+			log::add('smartthings', 'debug', __('washer mode', __FILE__).'->' . $mode_wash . '<-');
 			$this->checkAndUpdateCmd('mode', self::getWasherModeLabel($mode_wash));
             $this->checkAndUpdateCmd('end_mode', $status->washerOperatingState->completionTime->value);
             $this->checkAndUpdateCmd('spin_level', $vars["custom.washerSpinLevel"]->washerSpinLevel->value);
@@ -116,8 +127,8 @@ class smartthings extends eqLogic {
 			$this->checkAndUpdateCmd('modefn', $status->airConditionerMode->airConditionerMode->value);
 			$this->checkAndUpdateCmd('fanmode', $status->airConditionerFanMode->fanMode->value);
 			$this->checkAndUpdateCmd('power', $status->powerConsumptionReport->powerConsumption->value->energy);
-			//$mode_test = self::getWasherModeLabel($status->washerMode->washerMode->value);
-			//log::add('smartthings', 'debug', __('test', __FILE__).'->' . $mode_test . '<-');
+			$mode_test = $status->washerMode->washerMode->value;
+			log::add('smartthings', 'debug', __('test', __FILE__).'->' . $mode_test . '<-');
 			
         } else if($this->getConfiguration('type') == "Samsung OCF TV") {
 			$status = self::getDeviceStatus($this->getConfiguration('deviceId'));
@@ -139,85 +150,112 @@ class smartthings extends eqLogic {
 
     public static function getWasherModeLabel($mode) {
         switch ($mode) {
-            case "Table_00_Course_5C":
-                return "Super rapide";
-                break;
-            case "Table_00_Course_5B":
-                return "Coton";
-                break;
-            case "Table_00_Course_68":
-                return "ECoton";
-                break;
-            case "Table_00_Course_67":
-                return "Synthétique";
-                break;
-            case "Table_00_Course_65":
-                return "Laine";
-                break;
-            case "Table_00_Course_6C":
-                return "Jeans";
-                break;
-            case "Table_00_Course_64":
-                return "Rinçage + essorage";
-                break;
-            case "Table_00_Course_63":
-                return "Nettoyage tambour";
-                break;
-            case "Table_00_Course_61":
-                return "Couleur";
-                break;
-            case "Table_00_Course_60":
-                return "Imperméable";
-                break;
-            case "Table_00_Course_5F":
-                return "Bébé coton";
-                break;
-            case "Table_00_Course_5E":
-                return "Délicat";
-                break;
-            case "Table_00_Course_66":
-                return "Draps";
-                break;
-            case "Table_00_Course_5D":
-                return "Eco";
-                break;
+            case "Table_00_Course_5C":  return "Super rapide";          break;
+            case "Table_00_Course_5B":  return "Coton";                 break;
+            case "Table_00_Course_68":	return "ECoton";	            break;
+            case "Table_00_Course_67":  return "Synthétique";           break;
+            case "Table_00_Course_65":  return "Laine";	                break;
+            case "Table_00_Course_6C":  return "Jeans";		            break;
+            case "Table_00_Course_64":  return "Rinçage + essorage";	break;
+            case "Table_00_Course_63":  return "Nettoyage tambour"; 	break;
+            case "Table_00_Course_61":  return "Couleur";           	break;
+            case "Table_00_Course_60":  return "Imperméable";      		break;
+            case "Table_00_Course_5F":  return "Bébé coton";        	break;
+            case "Table_00_Course_5E":  return "Délicat";           	break;
+            case "Table_00_Course_66":  return "Draps";             	break;
+            case "Table_00_Course_5D":  return "Eco";    				break;
+            case "Table_02_Course_1C":	return "Eco 40-60";				break;
+            case "Table_02_Course_1B":	return "Coton";					break;
+            case "Table_02_Course_1E":	return "Express 15mn";			break;
+            case "Table_02_Course_1F":	return "Intensif à froid";		break;
+            case "Table_02_Course_25":	return "Synthétique";			break;
+            case "Table_02_Course_26":	return "Délicat";				break;
+            case "Table_02_Course_33":	return "Serviettes";			break;
+            case "Table_02_Course_24":	return "Draps";					break;
+            case "Table_02_Course_32":	return "Chemises";				break;
+            case "Table_02_Course_20":	return "Anti-allergènes";		break;
+            case "Table_02_Course_22":	return "Laine";					break;
+            case "Table_02_Course_23":	return "Extérieur";				break;
+            case "Table_02_Course_2F":	return "Sport";					break;
+            case "Table_02_Course_21":	return "Couleurs";				break;
+            case "Table_02_Course_2A":	return "Jeans";					break;
+            case "Table_02_Course_2E":	return "Bébé Coton";			break;
+            case "Table_02_Course_2D":	return "Lavage Silencieux";		break;
+            case "Table_02_Course_34":	return "Mix";					break;
+            case "Table_02_Course_30":	return "Journée nuageuse";		break;
+            case "Table_02_Course_27":	return "Rinçage + Essorage";	break;
+            case "Table_02_Course_28":	return "Vidange / Essorage";	break;
+            case "Table_02_Course_3A":	return "Nettoyage Tambour";		break;
 			default:
-				return "Inconnu!";
+				return "Inconnu ".$mode;
 				log::add('smartthings', 'info', __('Function mode unknow ->', __FILE__).$mode);
 				break;
         }
     }
+	
+	public static function getWasherJobState($job){
+		$job = strtolower($job);
+		switch ($job) {
+		    	case "none":		return "Aucun";				break;
+			case "weightsensing":	return "Pesée";				break;
+			case "delaywash":	return "Départ différé";		break;
+			case "wash":		return "Lavage";			break;
+			case "rinse":		return "Rinçage";			break;
+			case "spin":		return "Essorage";			break;
+			case "finish":		return "Terminé";			break;
+			default:		return $job;				break;
+		}
+	}
 
+	public static function getWasherCompletionTime($time){
+      	$time = str_replace("T", " ", $time);
+      	$time = str_replace("Z", "", $time);
+
+      	$difftime = new DateTime($time, new DateTimeZone('Europe/Paris'));
+		$difftime = $difftime->format('Z');
+      	$time = date('H:i:s d/m/Y',strtotime($difftime.' second',strtotime($time)));
+
+		return $time;
+	}
+  
     public static function dateDiff($date1, $date2){
-        $diff = abs($date1 - $date2);
-        $resultDiff = array();
+		// Si date1 est suppérieur à date2, le temps restant doit être à 0
+		if($date1 <= $date2) {
+			$diff = abs($date1 - $date2);
+			
+			$resultDiff = array();
 
-        $tmp = $diff;
-        $resultDiff['second'] = $tmp % 60;
+			$tmp = $diff;
+			$resultDiff['second'] = $tmp % 60;
 
-        $tmp = floor( ($tmp - $resultDiff['second']) /60 );
-        $resultDiff['minute'] = $tmp % 60;
+			$tmp = floor( ($tmp - $resultDiff['second']) /60 );
+			$resultDiff['minute'] = $tmp % 60;
 
-        $tmp = floor( ($tmp - $resultDiff['minute'])/60 );
-        $resultDiff['hour'] = $tmp % 24;
+			$tmp = floor( ($tmp - $resultDiff['minute'])/60 );
+			$resultDiff['hour'] = $tmp % 24;
 
-        $tmp = floor( ($tmp - $resultDiff['hour'])  /24 );
-        $resultDiff['day'] = $tmp;
+			$tmp = floor( ($tmp - $resultDiff['hour'])  /24 );
+			$resultDiff['day'] = $tmp;
 
-        $str = "";
+			$str = "";
 
-        if($resultDiff['hour'] > 0) {
-            $str .= $resultDiff['hour']." heure";
-        }
+			if($resultDiff['hour'] == 1) {
+				$str .= $resultDiff['hour']." heure";
+			}else if($resultDiff['hour'] > 1) {
+				$str .= $resultDiff['hour']." heures";
+			}
 
-        if($resultDiff['minute'] > 0) {
-            if($str != "") {
-                $str.= " et ";
-            }
-            $str .= $resultDiff['minute']." minute";
-        }
-
-        return $str;
+			if($resultDiff['minute'] <= 1) {
+				if($str != "") { $str.= " et "; }
+				$str .= $resultDiff['minute']." minute";
+			}else if($resultDiff['minute'] > 1) {
+				if($str != "") { $str.= " et "; }
+				$str .= $resultDiff['minute']." minutes";
+			}
+		}else {
+			$str = "0 minute";
+		}
+		return $str;	
     }
 
     public static function synchronize() {
@@ -326,6 +364,14 @@ class smartthings extends eqLogic {
                     $smartthingsCmd->setLogicalId("refresh");
                     $smartthingsCmd->setEqLogic_id($eqLogic->getId());
                     $smartthingsCmd->save();
+                  
+                    $smartthingsCmd = new smartthingsCmd();
+                    $smartthingsCmd->setType('info');
+                    $smartthingsCmd->setSubType('numeric');
+                    $smartthingsCmd->setName('Conso Total');
+                    $smartthingsCmd->setLogicalId("power");
+                    $smartthingsCmd->setEqLogic_id($eqLogic->getId());
+                    $smartthingsCmd->save();
                 } else if($device->name == "c2c-rgbw-color-bulb") { // Yeelight
                     $eqLogic = new eqLogic();
                     $eqLogic->setEqType_name('smartthings');
@@ -335,7 +381,7 @@ class smartthings extends eqLogic {
                     $eqLogic->setConfiguration('type', $device->name);
                     $eqLogic->setConfiguration('deviceId', $device->deviceId);
                     $eqLogic->save();
-                //} else if($device->name == "[room a/c] Samsung") { // Climatiseur
+
 				} else if($device->deviceTypeName == "Samsung OCF Air Conditioner") { // Climatiseur
 					log::add('event', 'info', __('New Climatiseur', __FILE__));
                     $eqLogic = new eqLogic();
@@ -394,10 +440,6 @@ class smartthings extends eqLogic {
                     $smartthingsCmd->setLogicalId("power");
                     $smartthingsCmd->setEqLogic_id($eqLogic->getId());
                     $smartthingsCmd->save();
-					
-					
-					
-					
 
                     $smartthingsCmd = new smartthingsCmd();
                     $smartthingsCmd->setType('action');
@@ -423,9 +465,6 @@ class smartthings extends eqLogic {
                     $smartthingsCmd->setEqLogic_id($eqLogic->getId());
                     $smartthingsCmd->save();
 
-
-
-					
                 } else if($device->deviceTypeName == "Samsung OCF TV") { // Climatiseur
 					log::add('event', 'info', __('New Televiseur', __FILE__));
                     $eqLogic = new eqLogic();
